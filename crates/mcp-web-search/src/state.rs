@@ -130,7 +130,7 @@ impl AppState {
 
         let mut aggregator = SearchAggregator::new();
 
-        let engine_names = vec!["google", "duckduckgo", "bing", "brave", "youtube", "yahoo"];
+        let engine_names = vec!["google", "duckduckgo", "bing", "brave", "youtube", "yahoo", "searxng"];
         for name in engine_names {
             let engine_client = if let Some(proxy_url) = proxy_cfg.proxy_for_engine(name) {
                 Self::build_proxied_client(proxy_url)

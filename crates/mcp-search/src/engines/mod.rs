@@ -8,6 +8,7 @@ pub mod bing;
 pub mod brave;
 pub mod youtube;
 pub mod yahoo;
+pub mod searxng;
 pub mod custom;
 
 pub use google::GoogleSearch;
@@ -16,6 +17,7 @@ pub use bing::BingSearch;
 pub use brave::BraveSearch;
 pub use youtube::YouTubeSearch;
 pub use yahoo::YahooSearch;
+pub use searxng::SearXNGSearch;
 pub use custom::{CustomSearchEngine, CustomEngineConfig};
 
 pub fn create_engine(
@@ -29,6 +31,7 @@ pub fn create_engine(
         "brave" => Some(Box::new(BraveSearch::new(client))),
         "youtube" | "yt" => Some(Box::new(YouTubeSearch::new(client))),
         "yahoo" => Some(Box::new(YahooSearch::new(client))),
+        "searxng" | "searx" => Some(Box::new(SearXNGSearch::new(client))),
         _ => None,
     }
 }
