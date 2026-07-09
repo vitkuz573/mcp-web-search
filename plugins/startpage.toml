@@ -1,0 +1,20 @@
+# Example custom search engine plugin for MCP Web Search
+# Place .toml files in the plugins/ directory to load them automatically
+
+name = "startpage"
+description = "Startpage privacy-focused search engine"
+base_url = "https://www.startpage.com"
+search_url_template = "https://www.startpage.com/sp/search?query={query}&language={lang}&cat=web"
+result_container = "div.w-gl__result"
+title_selector = "h3.w-gl__result-title"
+url_selector = "a.w-gl__result-url"
+snippet_selector = "p.w-gl__description"
+date_selector = "span.w-gl__date"
+next_page_selector = "button.next"
+url_attr = "href"
+timeout_ms = 15000
+
+[headers]
+Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+Accept-Language = "en-US,en;q=0.5"
+DNT = "1"

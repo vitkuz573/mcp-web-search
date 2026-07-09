@@ -74,6 +74,9 @@ urlencoding = "2"
 # Base64
 base64 = "0.22"
 
+# Async stream (for SSE)
+async-stream = "0.3"
+
 # Dev utilities
 pretty_assertions = "1"
 criterion = { version = "0.5", features = ["html_reports"] }

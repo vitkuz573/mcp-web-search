@@ -29,3 +29,4 @@ reqwest.workspace = true
 reqwest-middleware.workspace = true
 reqwest-retry.workspace = true
 schemars = "0.8"
+toml.workspace = true

@@ -1083,6 +1083,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "toml",
  "tracing",
  "url",
  "urlencoding",
@@ -1093,6 +1094,7 @@ dependencies = [
 name = "mcp-transport"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
  "futures",
  "mcp-core",
@@ -1103,6 +1105,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -1125,6 +1128,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "toml",
  "tower",
  "tower-http",
  "tracing",

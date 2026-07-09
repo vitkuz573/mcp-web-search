@@ -1,17 +1,19 @@
 mod state;
 
 use mcp_core::error::SearchOptions;
+use mcp_transport::SseTransportConfig;
 use rmcp::{
     tool_router, tool,
-    handler::server::{wrapper::{Parameters, Json}},
+    handler::server::wrapper::{Parameters, Json},
     schemars,
 };
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
+use std::path::PathBuf;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-use state::AppState;
+use state::{AppState, ProxyConfig};
 
 #[derive(Deserialize, schemars::JsonSchema)]
 struct SearchInput {
@@ -211,18 +213,71 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting MCP Web Search Server v{}", env!("CARGO_PKG_VERSION"));
 
-    let state = Arc::new(AppState::new());
+    // Parse CLI arguments
+    let args: Vec<String> = std::env::args().collect();
+
+    // Check for --http flag to run HTTP/SSE server
+    let http_mode = args.contains(&"--http".to_string());
+    let http_port = args.iter()
+        .position(|a| a == "--port")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|p| p.parse::<u16>().ok())
+        .unwrap_or(3000);
+    let http_host = args.iter()
+        .position(|a| a == "--host")
+        .and_then(|i| args.get(i + 1))
+        .cloned()
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+
+    // Check for proxy configuration
+    let proxy_config = if let Some(proxy_arg) = args.iter().position(|a| a == "--proxy") {
+        let proxy_url = args.get(proxy_arg + 1).cloned().unwrap_or_default();
+        ProxyConfig {
+            http_proxy: Some(proxy_url.clone()),
+            https_proxy: Some(proxy_url),
+            ..Default::default()
+        }
+    } else {
+        ProxyConfig::from_env()
+    };
+
+    // Check for plugin directory
+    let plugin_dir = args.iter()
+        .position(|a| a == "--plugins")
+        .and_then(|i| args.get(i + 1))
+        .map(PathBuf::from)
+        .or_else(|| {
+            let default_dir = PathBuf::from("plugins");
+            if default_dir.exists() {
+                Some(default_dir)
+            } else {
+                None
+            }
+        });
+
+    let state = Arc::new(AppState::with_config(Some(proxy_config), plugin_dir.as_ref()));
     let server = McpServer { state };
 
-    let transport = (
-        tokio::io::BufReader::new(tokio::io::stdin()),
-        tokio::io::BufWriter::new(tokio::io::stdout()),
-    );
+    if http_mode {
+        // Run HTTP/SSE server
+        let sse_config = SseTransportConfig {
+            host: http_host,
+            port: http_port,
+        };
+        info!("Running in HTTP/SSE mode on {}:{}", sse_config.host, sse_config.port);
+        mcp_transport::run_sse_server(sse_config).await?;
+    } else {
+        // Run stdio server (default)
+        let transport = (
+            tokio::io::BufReader::new(tokio::io::stdin()),
+            tokio::io::BufWriter::new(tokio::io::stdout()),
+        );
 
-    let service = rmcp::serve_server(server, transport).await?;
+        let service = rmcp::serve_server(server, transport).await?;
 
-    info!("MCP server running on stdio");
-    service.waiting().await?;
+        info!("MCP server running on stdio");
+        service.waiting().await?;
+    }
 
     Ok(())
 }

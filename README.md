@@ -4,12 +4,11 @@
 
 **Enterprise-grade MCP server for unified web search across multiple search engines**
 
-[![CI](https://github.com/vitkuz573/mcp-web-search/actions/workflows/ci.yml/badge.svg)](https://github.com/vitkuz573/mcp-web-search/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-2024-orange.svg)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-2.2-green.svg)](https://modelcontextprotocol.io/)
 
-[Features](#features) · [Quick Start](#quick-start) · [Configuration](#configuration) · [Docker](#docker) · [API](#api) · [Architecture](#architecture) · [Contributing](#contributing)
+[Features](#features) · [Quick Start](#quick-start) · [Configuration](#configuration) · [Plugins](#custom-engine-plugins) · [Proxy](#proxy-support) · [Docker](#docker) · [Architecture](#architecture)
 
 </div>
 
@@ -29,6 +28,7 @@ MCP Web Search is a high-performance Rust server that implements the [Model Cont
 | DuckDuckGo | Available* | 10 |
 | Yahoo | Available | ~7 |
 | YouTube | Available* | varies |
+| Custom | TOML plugins | configurable |
 
 > \* May be rate-limited or CAPTCHA-blocked from server IPs. Works reliably from residential connections.
 
@@ -36,14 +36,15 @@ MCP Web Search is a high-performance Rust server that implements the [Model Cont
 
 ## Features
 
-- **6 Search Engines** — Google, Bing, Brave, DuckDuckGo, Yahoo, YouTube
-- **MCP Protocol** — Full MCP 2.2 support via stdio transport
+- **6 Built-in Engines** — Google, Bing, Brave, DuckDuckGo, Yahoo, YouTube
+- **Custom Engine Plugins** — Add any search engine via TOML config files
+- **MCP Protocol** — Full MCP 2.2 support via stdio and HTTP/SSE transports
 - **No API Keys** — Parses HTML directly, no paid APIs needed
+- **Proxy Support** — HTTP, HTTPS, SOCKS5 with per-engine proxy routing
 - **Async & Fast** — Built on Tokio with concurrent multi-engine search
 - **Smart Caching** — Built-in response cache (moka) with 1-hour TTL
 - **Docker Ready** — Multi-stage Dockerfile with minimal runtime image (~90MB)
 - **Type Safe** — Full Rust type system with comprehensive error handling
-- **Structured Logging** — Tracing-based logging with configurable levels
 
 ---
 
@@ -52,7 +53,6 @@ MCP Web Search is a high-performance Rust server that implements the [Model Cont
 ### Prerequisites
 
 - Rust 1.85+ (edition 2024)
-- `cargo`
 
 ### Build & Run
 
@@ -61,8 +61,17 @@ git clone https://github.com/vitkuz573/mcp-web-search.git
 cd mcp-web-search
 cargo build --release
 
-# Run the MCP server
+# Run via stdio (default — for MCP clients like OpenCode)
 ./target/release/mcp-web-search
+
+# Run via HTTP/SSE (for remote access)
+./target/release/mcp-web-search --http --port 3000
+
+# Run with proxy
+HTTP_PROXY=http://proxy:8080 ./target/release/mcp-web-search
+
+# Run with custom plugins directory
+./target/release/mcp-web-search --plugins ./my-plugins
 ```
 
 ### Configure for OpenCode
@@ -76,6 +85,7 @@ Add to `~/.config/opencode/opencode.jsonc`:
       "type": "local",
       "command": ["/path/to/mcp-web-search"],
       "enabled": true,
+      "timeout": 10000,
       "environment": {
         "RUST_LOG": "off"
       }
@@ -84,59 +94,125 @@ Add to `~/.config/opencode/opencode.jsonc`:
 }
 ```
 
-### Available Tools
+---
 
-Once connected, the following MCP tools are available:
+## Custom Engine Plugins
 
-#### `web_search`
+Add any search engine as a TOML plugin file in the `plugins/` directory.
 
-Search a single engine or the default engine.
+### Plugin Format
 
-```json
-{
-  "query": "rust programming language",
-  "engine": "bing",
-  "language": "en",
-  "region": "us",
-  "page_size": 10,
-  "page": 1
-}
+```toml
+name = "startpage"
+description = "Startpage privacy-focused search engine"
+base_url = "https://www.startpage.com"
+search_url_template = "https://www.startpage.com/sp/search?query={query}&language={lang}&cat=web"
+result_container = "div.w-gl__result"
+title_selector = "h3.w-gl__result-title"
+url_selector = "a.w-gl__result-url"
+snippet_selector = "p.w-gl__description"
+date_selector = "span.w-gl__date"
+next_page_selector = "button.next"
+url_attr = "href"
+timeout_ms = 15000
+
+[headers]
+Accept = "text/html,application/xhtml+xml"
+DNT = "1"
 ```
 
-#### `multi_search`
+### Placeholders
 
-Search across multiple engines simultaneously.
+| Placeholder | Description |
+|-------------|-------------|
+| `{query}` | URL-encoded search query |
+| `{lang}` | Language code (e.g., `en`, `de`) |
+| `{region}` | Region code (e.g., `us`, `at`) |
+| `{page}` | Page number (0-indexed) |
+| `{page_size}` | Results per page |
+| `{first}` | First result index (1-indexed) |
 
-```json
-{
-  "queries": [
-    { "engine": "bing", "query": "rust lang" },
-    { "engine": "brave", "query": "rust lang" }
-  ],
-  "language": "en",
-  "region": "us"
-}
+### Load Plugins
+
+```bash
+# Auto-load from ./plugins/ directory
+./target/release/mcp-web-search
+
+# Specify custom directory
+./target/release/mcp-web-search --plugins /path/to/plugins
+
+# Load single file
+./target/release/mcp-web-search --plugins ./my-engine.toml
 ```
 
-#### `list_engines`
+---
 
-List all available search engines and their status.
+## Proxy Support
 
-```json
-{}
+Route HTTP requests through proxies. Supports HTTP, HTTPS, and SOCKS5.
+
+### Environment Variables
+
+```bash
+# HTTP proxy
+HTTP_PROXY=http://proxy:8080 ./target/release/mcp-web-search
+
+# HTTPS proxy
+HTTPS_PROXY=http://proxy:8080 ./target/release/mcp-web-search
+
+# SOCKS5 proxy
+ALL_PROXY=socks5://proxy:1080 ./target/release/mcp-web-search
+
+# No proxy for specific hosts
+NO_PROXY=localhost,127.0.0.1 ./target/release/mcp-web-search
+```
+
+### CLI Flag
+
+```bash
+./target/release/mcp-web-search --proxy http://proxy:8080
+```
+
+### Per-Engine Proxy
+
+Use TOML config for per-engine proxy routing:
+
+```toml
+http_proxy = "http://us-proxy:8080"
+https_proxy = "http://us-proxy:8080"
+socks5_proxy = "socks5://eu-proxy:1080"
+no_proxy = "localhost,127.0.0.1"
+
+[engine_proxies]
+bing = "http://bing-proxy:8080"
+brave = "http://brave-proxy:8080"
 ```
 
 ---
 
 ## Configuration
 
+### CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--http` | Run in HTTP/SSE mode (default: stdio) |
+| `--port <PORT>` | HTTP server port (default: 3000) |
+| `--host <HOST>` | HTTP server host (default: 127.0.0.1) |
+| `--proxy <URL>` | Global proxy URL |
+| `--plugins <PATH>` | Plugin file or directory path |
+
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `RUST_LOG` | `info` | Log level (`off`, `error`, `warn`, `info`, `debug`, `trace`) |
+| `HTTP_PROXY` | — | HTTP proxy URL |
+| `HTTPS_PROXY` | — | HTTPS proxy URL |
+| `ALL_PROXY` | — | SOCKS5 proxy URL |
+| `NO_PROXY` | — | Comma-separated no-proxy list |
 
-### MCP Configuration Options
+### MCP Configuration
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -173,10 +249,9 @@ services:
     tty: false
     environment:
       - RUST_LOG=info
+      - HTTP_PROXY=http://proxy:8080
     restart: unless-stopped
 ```
-
-The server communicates via **stdio** (stdin/stdout), which is the standard MCP transport.
 
 ---
 
@@ -187,9 +262,10 @@ mcp-web-search/
 ├── crates/
 │   ├── mcp-core/        # Core traits, types, error handling
 │   ├── mcp-parser/      # HTML parsing for search engine results
-│   ├── mcp-search/      # Search engine implementations
-│   ├── mcp-transport/   # SSE + Stdio transport layer
+│   ├── mcp-search/      # Search engine implementations + custom plugins
+│   ├── mcp-transport/   # SSE + HTTP + Stdio transport layer
 │   └── mcp-web-search/  # Main binary (MCP server)
+├── plugins/             # Custom engine TOML plugins
 ├── Dockerfile           # Multi-stage Docker build
 ├── docker-compose.yml   # Docker Compose config
 └── Cargo.toml           # Workspace root
@@ -199,87 +275,49 @@ mcp-web-search/
 
 | Crate | Description |
 |-------|-------------|
-| `mcp-core` | Core traits (`SearchEngine`), types (`SearchResult`, `SearchResponse`), and error handling |
-| `mcp-parser` | HTML parsing utilities for extracting search results from engine pages |
-| `mcp-search` | Search engine implementations with plugin architecture |
-| `mcp-transport` | SSE + Stdio transport layer (MCP protocol) |
-| `mcp-web-search` | Main binary — MCP server with `web_search`, `multi_search`, `list_engines` tools |
-
-### Search Flow
-
-```
-Client → MCP Protocol → mcp-web-search
-                            ↓
-                     SearchAggregator
-                            ↓
-              ┌─────────────┼─────────────┐
-              ↓             ↓             ↓
-           Bing          Brave        Yahoo
-              ↓             ↓             ↓
-           Parser        Parser        Parser
-              ↓             ↓             ↓
-              └─────────────┼─────────────┘
-                            ↓
-                      SearchResponse
-                            ↓
-                     MCP Response → Client
-```
-
----
-
-## API Reference
+| `mcp-core` | Core traits (`SearchEngine`), types, error handling |
+| `mcp-parser` | HTML parsing utilities with CSS selectors |
+| `mcp-search` | Search engine implementations + custom plugin loader |
+| `mcp-transport` | SSE, HTTP, Stdio transport (MCP protocol) |
+| `mcp-web-search` | Main binary — MCP server with all tools |
 
 ### MCP Tools
 
 #### `web_search`
 
-```rust
-struct SearchInput {
-    query: String,
-    engine: Option<String>,      // "bing", "brave", "google", etc.
-    language: Option<String>,    // "en", "ru", "de", etc.
-    region: Option<String>,      // "us", "ru", etc.
-    page_size: i64,              // default: 10
-    page: Option<i64>,
+```json
+{
+  "query": "rust programming language",
+  "engine": "bing",
+  "language": "en",
+  "region": "us",
+  "page_size": 10,
+  "page": 1
 }
 ```
 
 #### `multi_search`
 
-```rust
-struct MultiSearchInput {
-    queries: Vec<QueryItem>,     // max concurrent searches
-    language: Option<String>,
-    region: Option<String>,
-}
-
-struct QueryItem {
-    engine: String,
-    query: String,
+```json
+{
+  "queries": [
+    { "engine": "bing", "query": "rust lang" },
+    { "engine": "brave", "query": "rust lang" }
+  ],
+  "language": "en",
+  "region": "us"
 }
 ```
 
 #### `list_engines`
 
-```rust
-struct EnginesOutput {
-    engines: Vec<EngineInfo>,
-}
-
-struct EngineInfo {
-    name: String,
-    available: bool,
-}
+```json
+{}
 ```
 
 ---
 
 ## Development
-
-### Prerequisites
-
-- Rust 1.85+
-- `cargo`
 
 ### Build
 
@@ -300,29 +338,6 @@ cargo clippy --workspace -- -D warnings
 cargo fmt --all -- --check
 ```
 
-### Project Structure
-
-Each crate is independently testable:
-
-```bash
-# Test specific crate
-cargo test -p mcp-parser
-cargo test -p mcp-search
-```
-
----
-
-## Roadmap
-
-- [ ] Retry logic with exponential backoff for rate-limited engines
-- [ ] Configurable per-engine result limits
-- [ ] Proxy support for geo-restricted searches
-- [ ] Search result caching with Redis backend
-- [ ] HTTP/SSE transport option (alongside stdio)
-- [ ] Custom engine plugin API
-- [ ] Rate limiting per-client
-- [ ] Metrics export (Prometheus)
-
 ---
 
 ## License
@@ -339,6 +354,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 <div align="center">
 
-Built with Rust 🦀 and the [Model Context Protocol](https://modelcontextprotocol.io/)
+Built with Rust and the [Model Context Protocol](https://modelcontextprotocol.io/)
 
 </div>
