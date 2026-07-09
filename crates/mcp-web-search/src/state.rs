@@ -8,6 +8,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{info, warn};
 
+use crate::analytics::SearchAnalytics;
+
 /// Proxy configuration for HTTP requests
 #[derive(Debug, Clone, Default)]
 pub struct ProxyConfig {
@@ -73,12 +75,10 @@ impl ProxyConfig {
 
     /// Get proxy URL for a specific engine (falls back to global proxy)
     pub fn proxy_for_engine(&self, engine_name: &str) -> Option<&str> {
-        // Check per-engine proxy first
         if let Some(proxy) = self.engine_proxies.get(engine_name) {
             return Some(proxy.as_str());
         }
 
-        // Fall back to HTTPS proxy, then HTTP proxy, then SOCKS5
         self.https_proxy
             .as_deref()
             .or(self.http_proxy.as_deref())
@@ -90,6 +90,7 @@ pub struct AppState {
     pub aggregator: SearchAggregator,
     pub cache: Cache<String, SearchResponse>,
     pub proxy_config: ProxyConfig,
+    pub analytics: SearchAnalytics,
 }
 
 impl AppState {
@@ -103,11 +104,9 @@ impl AppState {
     ) -> Self {
         let proxy_cfg = proxy_config.unwrap_or_default();
 
-        // Build base client (without per-engine proxy)
         let mut builder = Client::builder()
             .timeout(Duration::from_secs(10));
 
-        // Apply global proxy
         if let Some(ref http_proxy) = proxy_cfg.http_proxy {
             if let Ok(proxy) = Proxy::http(http_proxy) {
                 info!("Using HTTP proxy: {}", http_proxy);
@@ -131,10 +130,8 @@ impl AppState {
 
         let mut aggregator = SearchAggregator::new();
 
-        // Register built-in engines
         let engine_names = vec!["google", "duckduckgo", "bing", "brave", "youtube", "yahoo"];
         for name in engine_names {
-            // Build per-engine client with proxy if configured
             let engine_client = if let Some(proxy_url) = proxy_cfg.proxy_for_engine(name) {
                 Self::build_proxied_client(proxy_url)
                     .unwrap_or_else(|e| {
@@ -152,7 +149,6 @@ impl AppState {
             }
         }
 
-        // Load custom engines from plugin directory
         if let Some(dir) = plugin_dir {
             let custom_engines = load_custom_engines(dir, client.clone());
             for engine in custom_engines {
@@ -172,6 +168,7 @@ impl AppState {
             aggregator,
             cache,
             proxy_config: proxy_cfg,
+            analytics: SearchAnalytics::new(),
         }
     }
 
@@ -204,8 +201,11 @@ impl AppState {
         );
 
         if let Some(cached) = self.cache.get(&cache_key).await {
+            self.analytics.record_cache_hit();
             return Ok(cached);
         }
+
+        self.analytics.record_cache_miss();
 
         let result = if let Some(engine_name) = engine {
             self.aggregator.search_single(engine_name, query, options).await?
