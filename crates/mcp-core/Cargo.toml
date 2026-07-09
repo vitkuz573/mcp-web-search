@@ -1,0 +1,19 @@
+[package]
+name = "mcp-core"
+description = "Core traits, types, and error handling for MCP Web Search"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+url.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

@@ -1,0 +1,15 @@
+target/
+.git/
+.github/
+.idea/
+.vscode/
+*.md
+!crates/
+docker-compose.yml
+Dockerfile
+.dockerignore
+.planning/
+planning/
+.env
+*.swp
+*.swo

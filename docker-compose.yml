@@ -1,0 +1,11 @@
+services:
+  mcp-web-search:
+    build: .
+    stdin_open: true
+    tty: false
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+    # MCP server communicates via stdio (stdin/stdout)
+    # Run with: docker compose run --rm mcp-web-search
+    # Or connect via: docker attach mcp-web-search

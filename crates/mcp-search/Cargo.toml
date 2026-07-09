@@ -1,0 +1,29 @@
+[package]
+name = "mcp-search"
+description = "Search engine implementations with plugin architecture"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mcp-core = { path = "../mcp-core" }
+mcp-parser = { path = "../mcp-parser" }
+async-trait.workspace = true
+reqwest.workspace = true
+reqwest-middleware.workspace = true
+reqwest-retry.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+rand.workspace = true
+scraper.workspace = true
+futures.workspace = true
+urlencoding = "2"
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+wiremock.workspace = true
+tokio.workspace = true

@@ -1,0 +1,9 @@
+/target
+*.swp
+*.swo
+*~
+.DS_Store
+.env
+*.pdb
+planning/
+.planning/
