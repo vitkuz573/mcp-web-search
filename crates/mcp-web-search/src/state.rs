@@ -20,6 +20,7 @@ pub struct ProxyConfig {
     /// SOCKS5 proxy URL (e.g., "socks5://proxy:1080")
     pub socks5_proxy: Option<String>,
     /// No proxy list (comma-separated hostnames)
+    #[allow(dead_code)]
     pub no_proxy: Option<String>,
     /// Per-engine proxy overrides (engine_name -> proxy_url)
     pub engine_proxies: std::collections::HashMap<String, String>,
@@ -46,6 +47,7 @@ impl ProxyConfig {
     }
 
     /// Create proxy config from TOML string
+    #[allow(dead_code)]
     pub fn from_toml(toml_str: &str) -> Result<Self, SearchError> {
         #[derive(serde::Deserialize)]
         struct ProxyConfigToml {
@@ -89,11 +91,13 @@ impl ProxyConfig {
 pub struct AppState {
     pub aggregator: SearchAggregator,
     pub cache: Cache<String, SearchResponse>,
+    #[allow(dead_code)]
     pub proxy_config: ProxyConfig,
     pub analytics: SearchAnalytics,
 }
 
 impl AppState {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::with_config(None, None)
     }

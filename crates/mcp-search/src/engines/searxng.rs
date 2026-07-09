@@ -28,8 +28,8 @@ struct SearXNGResult {
     content: Option<String>,
     #[serde(default)]
     engine: Option<String>,
-    #[serde(default)]
-    publishedDate: Option<String>,
+    #[serde(default, rename = "publishedDate")]
+    published_date: Option<String>,
 }
 
 impl SearXNGSearch {
@@ -130,7 +130,7 @@ impl SearchEngine for SearXNGSearch {
                 url: r.url,
                 snippet: r.content.unwrap_or_default(),
                 engine: r.engine.unwrap_or_else(|| "searxng".to_string()),
-                published_date: r.publishedDate,
+                published_date: r.published_date,
                 thumbnail: None,
                 position: Some(i + 1),
             })

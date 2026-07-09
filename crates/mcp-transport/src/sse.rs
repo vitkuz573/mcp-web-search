@@ -31,6 +31,7 @@ pub struct SseSessionManager {
 
 struct SseSession {
     id: String,
+    #[allow(dead_code)]
     created_at: std::time::Instant,
 }
 

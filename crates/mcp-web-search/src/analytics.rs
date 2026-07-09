@@ -46,6 +46,7 @@ impl SearchAnalytics {
         analytics.total_results.fetch_add(results as i64, Ordering::Relaxed);
     }
 
+    #[allow(dead_code)]
     pub fn record_error(&self, engine: &str) {
         let mut engines = self.engines.write().unwrap();
         let analytics = engines.entry(engine.to_string()).or_default();
