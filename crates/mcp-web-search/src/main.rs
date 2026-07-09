@@ -241,18 +241,17 @@ async fn main() -> anyhow::Result<()> {
         ProxyConfig::from_env()
     };
 
-    // Check for plugin directory
+    // Check for plugin directory: --plugins flag > env var > ./plugins/
     let plugin_dir = args.iter()
         .position(|a| a == "--plugins")
         .and_then(|i| args.get(i + 1))
         .map(PathBuf::from)
         .or_else(|| {
-            let default_dir = PathBuf::from("plugins");
-            if default_dir.exists() {
-                Some(default_dir)
-            } else {
-                None
-            }
+            std::env::var("MCP_WEB_SEARCH_PLUGINS").ok().map(PathBuf::from)
+        })
+        .or_else(|| {
+            let dir = PathBuf::from("plugins");
+            if dir.exists() { Some(dir) } else { None }
         });
 
     let state = Arc::new(AppState::with_config(Some(proxy_config), plugin_dir.as_ref()));
