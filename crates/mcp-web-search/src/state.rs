@@ -105,7 +105,7 @@ impl AppState {
         let proxy_cfg = proxy_config.unwrap_or_default();
 
         let mut builder = Client::builder()
-            .timeout(Duration::from_secs(10));
+            .timeout(Duration::from_secs(5));
 
         if let Some(ref http_proxy) = proxy_cfg.http_proxy {
             if let Ok(proxy) = Proxy::http(http_proxy) {
@@ -174,7 +174,7 @@ impl AppState {
 
     fn build_proxied_client(proxy_url: &str) -> Result<Client, reqwest::Error> {
         let mut builder = Client::builder()
-            .timeout(Duration::from_secs(10));
+            .timeout(Duration::from_secs(5));
 
         if proxy_url.starts_with("socks5://") {
             builder = builder.proxy(Proxy::all(proxy_url)?);

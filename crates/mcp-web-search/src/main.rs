@@ -323,25 +323,35 @@ impl McpServer {
 
         for engine_name in engine_names {
             let engine_start = Instant::now();
-            let result = state.aggregator.search_single(&engine_name, "test", &SearchOptions {
-                page_size: 1,
-                ..Default::default()
-            }).await;
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(2),
+                state.aggregator.search_single(&engine_name, "test", &SearchOptions {
+                    page_size: 1,
+                    ..Default::default()
+                })
+            ).await;
 
             match result {
-                Ok(resp) => engines.push(EngineHealth {
+                Ok(Ok(resp)) => engines.push(EngineHealth {
                     name: engine_name,
                     status: "healthy".to_string(),
                     latency_ms: engine_start.elapsed().as_millis() as i64,
                     results_count: resp.results.len() as i64,
                     error: None,
                 }),
-                Err(e) => engines.push(EngineHealth {
+                Ok(Err(e)) => engines.push(EngineHealth {
                     name: engine_name,
                     status: "unhealthy".to_string(),
                     latency_ms: engine_start.elapsed().as_millis() as i64,
                     results_count: 0,
                     error: Some(e.to_string()),
+                }),
+                Err(_) => engines.push(EngineHealth {
+                    name: engine_name,
+                    status: "timeout".to_string(),
+                    latency_ms: 2000,
+                    results_count: 0,
+                    error: Some("Health check timed out after 2s".to_string()),
                 }),
             }
         }

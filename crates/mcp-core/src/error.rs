@@ -147,7 +147,7 @@ pub struct EngineConfig {
 }
 
 fn default_timeout() -> u64 {
-    10_000
+    5_000
 }
 
 impl Default for EngineConfig {

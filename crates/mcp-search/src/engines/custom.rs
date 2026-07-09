@@ -76,7 +76,7 @@ pub struct CustomEngineConfig {
 }
 
 fn default_timeout_ms() -> u64 {
-    10_000
+    5_000
 }
 fn default_url_attr() -> String {
     "href".to_string()
@@ -319,7 +319,7 @@ snippet_selector = "p"
         assert_eq!(config.name, "example");
         assert_eq!(config.base_url, "https://example.com");
         assert!(config.enabled);
-        assert_eq!(config.timeout_ms, 10000);
+        assert_eq!(config.timeout_ms, 5000);
     }
 
     #[test]
